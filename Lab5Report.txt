@@ -1,0 +1,126 @@
+﻿В качестве цели чаще всего применется:
+Acceppt — разрешает пакету следовать своим маршрутом
+Drop — запрещает пропуск пакета и удаляет его
+Reject — запрещает пропускать пакет и выдает ICMP — сообщение об ошибке
+
+iptables -L > Lab5 — запись пронумерованного списка правил в файл
+iptables -F — очищает все цепочки от заданных правил
+iptables -P /INPUT/OUTPUT/FORMWARD/ ACCEPT — политика по умолч ACCEPT
+
+Блокируем весь трафик с D2(вторая машина):
+iptables -A INPUT -s 169.254.190.2 -j DROP
+
+
+На Mein Machine:
+nc -l -n -p 23
+
+На машине D2:
+telnet 169.254.190.1...
+
+На хосте:
+telnet 169.254.190.1
+
+/*******************/
+host — получение DNS сайта
+
+host -t a vsu.by
+vsu.by has address 176.60.213.3
+
+Блокирование исходящего трафика на 80 порт узла vsu.by 
+iptables -A OUTPUT -p tcp -d 176.60.213.3 --dport 80 -j DROP
+
+Просмотр всех правил с номерами
+iptables -L —line-numbers
+iptables -D INPUT 1 — удаление правила из INPUT с номером 1
+
+
+host -t a github.com
+github.com has address 192.30.253.112
+github.com has address 192.30.253.113
+
+whois 192.30.253.113 | grep CIDR
+CIDR:           192.30.252.0/22
+
+Меняем правило в таблице:
+iptables -R OUTPUT 1 -o eht2 -p tcp -d 192.30.252.0/22 --dport 80 -j DROP
+
+iptables -I OUTPUT 1  -p tcp --dport 80 -j ACCEPT
+
+Правило №2 не работает, т.к правило №1 «перекрывает» правило №2.
+
+Не позволяем пинговать машину:
+iptables -A INPUT -p icmp -j DROP
+
+Сбрсываем правила iptables -F
+
+Для недоверенной сети:
+iptables -A INPUT -p tcp -s 169.254.190.2 --dport 80 -j ACCEPT //Web
+iptables -A FORWARD -p tcp -s 169.254.190.2 --dport 25 -j ACCEPT //Smtp
+iptables -A INPUT -p tcp -s 169.254.190.2 --dport 22 -j LOG --log-prefix "Connect through ssh" --log-level 4 //протоколируем подкючения по ssh
+iptables -A INPUT -p tcp -s 169.254.190.2 --dport 22 -j DROP //запрещаем подключение по ssh
+iptables -A INPUT -p tcp -s 169.254.190.2 --dport 23 -j LOG --log-prefix "Connect through telnet" --log-level 4 //протоколируем подкючения по telnet
+iptables -A INPUT -p tcp -s 169.254.190.2 --dport 23 -j DROP //запрещаем подключение по telnet
+
+
+Для доверенной сети:
+iptables -A INPUT -p tcp -s 192.168.0.102 --dport 80 -j ACCEPT //Web
+iptables -A INPUT -p tcp -s 192.168.0.102 --dport 25 -j ACCEPT //SMTP
+iptables -A INPUT -p tcp -s 192.168.0.102 --dport 22 -j ACCEPT //Ssh
+iptables -A INPUT -p tcp -s 192.168.0.102 --dport 23 -j ACCEPT //Telnet
+iptables -A INPUT -p tcp -s 192.168.0.102 --dport 21 -j ACCEPT //FTP
+
+
+iptables-save > iptables_saved  //сохраняем настройки в файл iptables_saved
+iptables-restore < iptables_saved //загружаем настройки из файла iptables_saved
+
+Ответы на вопросы:
+
+1. Какие таблицы поддерживает NetFilter?
+Filter — таблица по умолч., содержит INPUT , OUTPUT , FORWARD
+Nat — таблица для пакетов, создающих новое соединение
+Mangle — содержит правила модификации пакетов
+Raw — просматривается до передачи пакета системе определения состояния
+Security — для правил сетевого управления доступом
+
+2. Что делает правило: iptables –A INPUT –p tcp --syn –j DROP 
+Блокирует входящие tcp пакеты с флагом --syn
+
+3. Что делает указанное ниже правило: 
+iptables –A INPUT –m mac --mac-source 00:01:34:56:AB:CD –j DROP 
+Блокирует трафик с источника с заданным MAC адресом
+
+4. Что делает указанное ниже правило: 
+iptables – A INPUT – m state --state ESTABLISHED,RELATED –S ACCEPT 
+Разрешает пакеты с состоянием  ESTABLISHED,RELATED
+ESTABLISHED — пакет есть часть существующего сеанса
+RELATED — пакет открывает новый сеанс, связанный с уже установленным сеансом 
+
+5. Что делают указанные ниже правила:
+iptables - A OUTPUT -o eth0 -p tcp --dport 443 -m state --state NEW,ESTABLISHED -j ACCEPT 
+Разрешает отправку пакетов по tcp через интерфейс eth0 на порт 443 с состоянием NEW,ESTABLISHE.
+NEW — пакет открывает новый сеанс
+iptables - A INPUT -i eth0 -p tcp --sport 443 -m state --state ESTABLISHED -j ACCEPT
+Разрешает прием пакетов по tcp через интерфейс eth0 с порта 443 с состоянием  ESTABLISHED
+ 
+6. Что делают указанные ниже правила: 
+iptables -A OUTPUT -p icmp --icmp-type echo-request -j ACCEPT 
+Разрешает выходной echo-result
+iptables -A INPUT -p icmp --icmp-type echo-reply -j ACCEPT 
+Разрешает входной echo-reply
+
+7. Что делают указанные ниже правила: 
+iptables -A OUTPUT -p udp -o eth0 --dport 53 -j ACCEPT 
+Разрешает передачу по udp через интерфейс eth0 на порт 53
+iptables -A INPUT -p udp -i eth0 --sport 53 - j ACCEPT 
+Разрешает прием по udp через интерфейс eth0 c порта 53 
+
+8. Что делают указанные ниже правила: 
+iptables -N LOGGING 
+Создает цепочку с именем LOGGING
+iptables -A INPUT -j LOGGING 
+Для входящего трафика применяется цепочка  LOGGING
+iptables -A LOGGING -m limit --limit 10/min -j LOG --log-prefix " IPTables Packet Dropped : " --log-level 7 
+Лимит для  LOGGING на 10 сообщений в минуту,при достижении лимита будет выполнено логирование с уровнем 7
+iptables -A LOGGING -j DROP
+Удаляет все пакеты, приходящие в цепочку LOGGING
+

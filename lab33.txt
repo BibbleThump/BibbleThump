@@ -1,0 +1,52 @@
+logname - выводит логин пользователя
+whoami - выводит имя пользователя,ассоциированное с текущим эффективным идентификатором пользователя
+id - выводит реальный и эффективный ид.пользователя и группы
+who - показывает, кто вошёл в систему
+users - выводит имена пользователей, которые в д.момент находятся
+в текущем хосте
+finger - выполняет поиск инфы о пользователе
+last - показывает список пользователей, которые последними вошли в систему
+
+id - команда для того,чтобы узнать, к каким группам принадлеждит пользователь
+
+Добавление :
+mrAnderson - useradd mrAnderson -c"follow white rabbit, Neo!"
+Morfeus - useradd Morfeus -m
+Trinity - useradd Trinity -s /bin/zsh
+mrSmith - useradd mrSmith -c "matrix agent" -s /bin/false -m -k /etc/Matrix
+useradd Dozer
+
+Изменение :
+usermod mrAnderson -l Neo -c "You are chosen,Neo!" -d /home/matrix
+usermod mrSmith -c "Matrix agent" -s /bin/bash
+
+Телефоны :
+chfn -h 123 -w 456 Neo
+chfn -h 321 -w 654 Morfeus
+chfn -h 123 -w 456 Trinity
+chfn -h 111 -w 222 mrSmith
+
+Блокировка :
+usermod mrSmith -L
+заменить оболочку на /bin/false
+
+
+альтернатива: изменение /bin/passwd or /bin/group
+chfn chsh
+
+Удаление: 
+userdel -r Dozer
+
+Группы:
+groupadd hackers
+groupadd agents
+
+/etc/group
+
+usermod Neo -G hackers
+usermod Trinity -G hackers
+usermod Morfeus -G hackers
+usermod mrSmith -G agents
+
+groupmod -n rebels hackers
+

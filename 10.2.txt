@@ -1,0 +1,180 @@
+Проверка наличия пакета
+dpkg -s package_name
+Поиск пакетов
+apt-cache search text_to_search
+
+fdisk -l - манипулирует таблицей разделов диска (-l - список)
+можно посмотреть идентификаторы в столбце Id,
+размеры разделов в столбце Size,
+границы разделов (столбцы Start и End)
+
+e2label /dev/sda6 - выведет метку раздела
+e2label /dev/sda6 sda6 - устанавливает метку раздела
+
+file -sL /dev/sda6 - можно узнать тип установленной фс
+
+df -h /dev/sda6 - количество свободного и занятого места
+
+tune2fs -l /dev/sda6 | grep -i 'block size' - размер блока
+
+Создание файла диска SATA:
+Настройки виртуальной машины->Носители->Контроллер SATA
+
+Проверить что создался:
+fdisk -l
+
+Создание раздела:
+fdisk /dev/sdb
+m - справка
+n - создание раздела
+p - первичный
+default
+default
+default
+w - сохранить результаты и выйти
+
+mkfs.ext4 /dev/sdb1
+
+e2label /dev/sdb1 sdb1
+
+dd if=/dev/zero of=mydisk count=524288
+dd - конвертирует и копирует файл
+if - читать из файла вместо входного потока
+of - писать в файл вместо выходного потока
+count - копирование заданного числа блоков
+
+du -sh mydisk
+du - проверка свободного места на диске
+h - human-readable формат
+s - отобразить только общее количество для каждого аргумента
+
+sudo mkdir /mnt/image - создаем папку
+
+sudo mount -o loop mydisk /mnt/image
+монтирование mydisk 
+loop - абстракция, чтобы относиться к файлу как к блочному устройству
+
+loop - для монтирования образа диска
+
+sudo tune2fs -l /dev/sda6 - выводит содержимое суперблока фс, включая
+значения параметров, которые могут быть изменены через эту же команду
+sudo dumpe2fs -h /dev/sda6 - выводит информацию о фс
+-h - выводит только информацию суперблока
+
+sudo tune2fs -c 5 /dev/sdb1 
+- изменение максимального количества монтирований
+Setting maximal mount count to 5
+
+Ext4 - журналируемая фс
+
+sudo tune2fs -j /dev/sdb1 - добавить etx3 журнал в фс
+
+sudo mkswap /dev/sdb1
+
+sudo swapon /dev/sdb1 - активирование раздела подкачки
+
+sudo badblocks -vsw /dev/sdb1 - проверяет устройство на наличие плохих
+блоков
+-v - подробный режим
+-s - выводит прогресс
+-w - использует тест пишущего режима
+
+sudo apt-get install lvm2
+
+fdisk /dev/sdc
+n
+p
+1
+default
+default
+t 
+8e
+w
+
+Назначить созданный раздел в качестве нового физического тома LVM
+sudo pvcreate /dev/sdc1
+
+Просмотр информации о существующих LVM томах
+sudo pvs
+
+Создание группы томов:
+sudo vgcreate myname /dev/sdc1
+
+Просмотр созданных групп
+sudo vgs
+
+Создание нового логического LVM-раздела из группы томов:
+sudo lvcreate --size 1000M --name new_name myname
+
+sudo lvs - информация о логическом томе
+
+sudo vgs
+
+форматирование в ext4
+sudo mkfs.ext4 /dev/mapper/myname-new_name
+
+sudo mkdir /mnt/test - создаем папку для монтирования
+
+монтирование LVM-тома
+sudo mount -t ext4 /dev/mapper/myname-new_name /mnt/test
+
+md5sum - получение контрольной суммы
+
+Эксперименты
+sudo umount /mnt/test - отмонтирование
+sudo lvresize --size 1000M /dev/myname/new_name - изменение размера тома
+sudo e2fsck -f /dev/myname/new_name - проверка фс
+-f - принудительно
+sudo resize2fs /dev/myname/new_name 1000M - изменяет размер фс
+
+mount -t ext4 /dev/myname/new_name /mnt/test - монтирование
+
+sudo umount /mnt/test
+sudo e2fsck -f /dev/myname/new_name
+sudo resize2fs /dev/myname/new_name 900M
+sudo lvresize --size 900M /dev/myname/new_name
+sudo mount -t ext4 /dev/myname/new_name /mnt/test
+
+Удаление логического LVM-тома
+sudo lvremove /dev/myname/new_name
+Удаление целой группы LVM-томов
+sudo vgremove myname
+
+sudo apt-get install mdadm
+
+создаем два .vhd 
+
+sudo apt-get install gparted
+создать таблицу разделов и добавить по одному разделу в каждый диск
+sudo gparted /dev/sdd 
+sudo gparted /dev/sde
+
+Создание массива RAID 5 из двух разделов
+sudo mdadm --create /dev/md0 --level=5 --raid-devices=2 /dev/sdd1 /dev/sde1
+
+cat /proc/mdstat
+краткое описание состояния драйвера md, а также состояния всех массивов RAID,
+существующих в системе	
+
+nano /var/log/messages - полезные сообщения
+/etc/mdadm/mdadm.conf - файл конфигурации RAID
+
+sudo sh -c 'echo DEVICE /dev/sdd1 /dev/sde1 >> /etc/mdadm/mdadm.conf'
+sudo sh -c 'mdadm --detail --scan >> /etc/mdadm/mdadm.conf' - сохраняем текущие настройки
+cat /etc/mdadm/mdadm.conf
+
+sudo mdadm -As /dev/md0 - активация массива (-As - сброка массива с помощью
+файла конфигурации)
+
+sudo mdadm -S /dev/md0 - остановка массива
+
+sudo update-rc.d mdadm enable - демон монитора mdadm будет запускаться 
+во время загрузки
+
+sudo mdadm /dev/md0 -f /dev/sdd1
+sudo tail /var/log/messages
+cat /proc/mdstat
+
+sudo mdadm /dev/md0 -r /dev/sdd1 - удалить
+
+sudo mdadm /dev/md0 -a /dev/sdd1 - добавить

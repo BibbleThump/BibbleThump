@@ -1,0 +1,126 @@
+1)APACHE
+ссылка на урок - https://losst.ru/ustanovka-lamp-v-debian-9 (до настройки БД)
+apt-get update
+apt-get upgrade
+
+Установка:
+Веб-сервер и интерпретатор языка программирования PHP:
+apt-get install apache2 php php-mysql libapache2-mod-php php-mbstring php-zip php-gd
+MariaDB:
+apt-get install mariadb-server mariadb-client mariadb-common
+
+Создание папки для сайта:
+mkdir /var/www/test-site/
+Копирование конфигурации по умолчанию:
+cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-available/test-site.conf
+Изменение необходимых параметров в файле /etc/apache2/sites-available/test-site.conf:
+ServerName test-site.com (идет в начале, может быть закомментирован)
+DocumentRoot /var/www/test-site
+Добавляем ServerAlias www.test-site.com (чтобы можно было зайти и по такому адресу)
+Активация сайта:
+a2ensite test-site.conf
+Перезапуск Apache:
+systemctl reload apache2
+Создание файла сайта:
+touch /var/www/test-site/index.php
+Содержимое файла /var/www/test-site/index.php:
+<?php phpinfo() ?>
+Настройка маршрута для домена локально:
+nano /etc/hosts
+Добавить строку 127.0.0.1 test-site.com
+Проверка в браузере:
+http://test-site.com
+На клиенте в файл /etc/hosts добавить запись:
+192.168.1.4 test-site.com (192.168.1.4 - адрес сервера)
+
+2)MUNIN
+ссылка на урок -https://community.vscale.io/hc/ru/community/posts/209438565-%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0-%D0%B8-%D0%BF%D0%B5%D1%80%D0%B2%D0%B8%D1%87%D0%BD%D0%B0%D1%8F-%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0-Munin-%D0%BD%D0%B0-Ubuntu-16-04
+apt-get update
+apt-get install munin munin-node
+Конфигурационный файл /etc/munin/munin.conf
+nano /etc/munin/munin.conf
+Меняем [localhost.localdomain] на [test-site.com] (например)
+
+Меняем address
+nano /etc/munin/munin-node.conf
+Меняем #host_name localhost.localdomain на host_name test-site.com
+Меняем #host 127.0.0.1
+Добавляем allow
+service munin-node restart
+Добавляем в файл виртуального хоста (/etc/apache2/sites-available/test-site.conf):
+<Location /munin>
+    AuthType Basic
+    AuthName "Munin Statistics"
+    AuthUserFile /etc/munin/.passwd
+    Require valid-user
+</Location>
+Перезапускаем:
+service apache2 restart
+файл паролей:
+htpasswd -c /etc/munin/.passwd ksenia
+
+Проверка:
+http://test-site.com/munin
+Логин: ksenia
+Пароль: от учётной записи
+
+3)NAGIOS
+ссылка - https://support.nagios.com/kb/article/nagios-core-installing-nagios-core-from-source-96.html#Debian
+su - - переход под root
+dpkg -l selinux* - проверка, установлен ли SELinux
+apt-get update
+apt-get install -y autoconf gcc libc6 make wget unzip apache2 apache2-utils php libgd-dev
+Скачивание источника:
+cd /tmp
+wget -O nagioscore.tar.gz https://github.com/NagiosEnterprises/nagioscore/archive/nagios-4.3.4.tar.gz
+tar xzf nagioscore.tar.gz
+Компиляция:
+cd /tmp/nagioscore-nagios-4.3.4/
+./configure --with-httpd-conf=/etc/apache2/sites-enabled
+make all
+Создание пользователя и группы:
+useradd nagios
+usermod -a -G nagios www-data
+Установка бинарников:
+make install
+Установка демона/сервиса:
+make install-init
+systemctl enable nagios.service
+Установка командного режима:
+make install-commandmode
+Установка конфигурационных файлов:
+make install-config
+Установка конфигурационных файло Апач:
+make install-webconf
+a2enmod rewrite
+a2enmod cgi
+Конфигурация файервола:
+iptables -I INPUT -p tcp --destination-port 80 -j ACCEPT
+apt-get install -y iptables-persistent
+Создание аккаунта nagiosadmin:
+htpasswd -c /usr/local/nagios/etc/htpasswd.users nagiosadmin (user)
+Старт апач:
+systemctl restart apache2.service
+Запуск сервиса/демона:
+systemctl start nagios.service
+Проверка:
+http://192.168.1.4/nagios/ - логин nagiosadmin + пароль
+Установка плагинов:
+apt-get install -y autoconf gcc libc6 libmcrypt-dev make libssl-dev wget bc gawk dc build-essential snmp libnet-snmp-perl gettext
+Скачивание источника:
+cd /tmp
+wget --no-check-certificate -O nagios-plugins.tar.gz https://github.com/nagios-plugins/nagios-plugins/archive/release-2.2.1.tar.gz
+tar zxf nagios-plugins.tar.gz
+Установка и Компиляция:
+cd /tmp/nagios-plugins-release-2.2.1/
+./tools/setup
+./configure
+make
+make install
+Проверка:
+http://192.168.1.4/nagios/ - логин nagiosadmin + пароль
+Команды управления:
+systemctl start nagios.service
+systemctl stop nagios.service
+systemctl restart nagios.service
+systemctl status nagios.service
